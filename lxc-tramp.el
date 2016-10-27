@@ -83,11 +83,11 @@
 
 (defun lxc-tramp--running-containers ()
   "Collect lxc running containers.
-
 Return a list of containers of the form: \(ID NAME\)"
-  (cl-loop for line in (cdr (ignore-errors (apply #'process-lines lxc-tramp-lxc-executable (append lxc-tramp-lxc-options (list "ps")))))
-           for info = (split-string line "[[:space:]]+" t)
-           collect (cons (car info) (last info))))
+  (cddr  (cl-loop for line in (cdr (ignore-errors (apply #'process-lines lxc-tramp-lxc-executable (append lxc-tramp-lxc-options (list "list" "-c" "cn")))))
+                 for info = (split-string line " *| *" t)
+                 unless (string-prefix-p "+-" (car info))
+                   collect (list (cadr info) (car info)))))
 
 (defun lxc-tramp--parse-running-containers (&optional ignored)
   "Return a list of (user host) tuples.
@@ -120,7 +120,7 @@ to connect to the default user containers."
   (add-to-list 'tramp-methods
                `(,lxc-tramp-method
                  (tramp-login-program      ,lxc-tramp-lxc-executable)
-                 (tramp-login-args         (,lxc-tramp-lxc-options ("exec" "-it") ("-u" "%u") ("%h") ("sh")))
+                 (tramp-login-args         (,lxc-tramp-lxc-options ("exec" "--mode=interactive") ("%h") ("sh")))
                  (tramp-remote-shell       "/bin/sh")
                  (tramp-remote-shell-args  ("-i" "-c")))))
 
