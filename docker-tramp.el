@@ -1,10 +1,11 @@
-;;; docker-tramp.el --- TRAMP integration for docker containers  -*- lexical-binding: t; -*-
+;;; lxc-tramp.el --- TRAMP integration for lxc containers  -*- lexical-binding: t; -*-
 
+;; Copyright (C) 2016 Erno Kuusela
 ;; Copyright (C) 2015 Mario Rodas <marsam@users.noreply.github.com>
 
-;; Author: Mario Rodas <marsam@users.noreply.github.com>
-;; URL: https://github.com/emacs-pe/docker-tramp.el
-;; Keywords: docker, convenience
+;; Authors: Erno Kuusela, Mario Rodas <marsam@users.noreply.github.com>
+;; URL: https://github.com/emacs-pe/lxc-tramp.el
+;; Keywords: lxc, convenience
 ;; Version: 0.1
 ;; Package-Requires: ((emacs "24") (cl-lib "0.5"))
 
@@ -27,38 +28,20 @@
 
 ;;; Commentary:
 ;;
-;; `docker-tramp.el' offers a TRAMP method for Docker containers.
+;; `lxc-tramp.el' offers a TRAMP method for LXC containers.
 ;;
-;; > **NOTE**: `docker-tramp.el' relies in the `docker exec` command.  Tested
-;; > with docker version 1.6.x but should work with versions >1.3
+;; > **NOTE**: `lxc-tramp.el' relies in the `lxc exec` command.  Tested
+;; > with lxc version 2.0.5 but should work with versions >2.0
 ;;
 ;; ## Usage
 ;;
-;; Offers the TRAMP method `docker` to access running containers
+;; Offers the TRAMP method `lxc` to access running containers
 ;;
-;;     C-x C-f /docker:user@container:/path/to/file
+;;     C-x C-f /lxc:user@container:/path/to/file
 ;;
 ;;     where
 ;;       user           is the user that you want to use (optional)
 ;;       container      is the id or name of the container
-;;
-;; ## Troubleshooting
-;;
-;; ### Tramp hangs on Alpine container
-;;
-;; Busyboxes built with the `ENABLE_FEATURE_EDITING_ASK_TERMINAL' config option
-;; send also escape sequences, which `tramp-wait-for-output' doesn't ignores
-;; correctly.  Tramp upstream fixed in [98a5112][] and is available since
-;; Tramp>=2.3.
-;;
-;; For older versions of Tramp you can dump [docker-tramp-compat.el][] in your
-;; `load-path' somewhere and add the following to your `init.el', which
-;; overwrites `tramp-wait-for-output' with the patch applied:
-;;
-;;     (require 'tramp-docker-compat)
-;;
-;; [98a5112]: http://git.savannah.gnu.org/cgit/tramp.git/commit/?id=98a511248a9405848ed44de48a565b0b725af82c
-;; [docker-tramp-compat.el]: https://github.com/emacs-pe/docker-tramp.el/raw/master/docker-tramp-compat.el
 
 ;;; Code:
 (eval-when-compile (require 'cl-lib))
@@ -66,63 +49,63 @@
 (require 'tramp)
 (require 'tramp-cache)
 
-(defgroup docker-tramp nil
-  "TRAMP integration for Docker containers."
-  :prefix "docker-tramp-"
+(defgroup lxc-tramp nil
+  "TRAMP integration for Lxc containers."
+  :prefix "lxc-tramp-"
   :group 'applications
-  :link '(url-link :tag "Github" "https://github.com/emacs-pe/docker-tramp.el")
-  :link '(emacs-commentary-link :tag "Commentary" "docker-tramp"))
+  :link '(url-link :tag "Github" "https://github.com/erno/lxc-tramp.el")
+  :link '(emacs-commentary-link :tag "Commentary" "lxc-tramp"))
 
-(defcustom docker-tramp-docker-executable "docker"
-  "Path to docker executable."
+(defcustom lxc-tramp-lxc-executable "lxc"
+  "Path to lxc executable."
   :type 'string
-  :group 'docker-tramp)
+  :group 'lxc-tramp)
 
 ;;;###autoload
-(defcustom docker-tramp-docker-options nil
-  "List of docker options."
+(defcustom lxc-tramp-lxc-options nil
+  "List of lxc options."
   :type '(repeat string)
-  :group 'docker-tramp)
+  :group 'lxc-tramp)
 
-(defcustom docker-tramp-use-names nil
+(defcustom lxc-tramp-use-names nil
   "Whether use names instead of id."
   :type 'boolean
-  :group 'docker-tramp)
+  :group 'lxc-tramp)
 
 ;;;###autoload
-(defconst docker-tramp-completion-function-alist
-  '((docker-tramp--parse-running-containers  ""))
-  "Default list of (FUNCTION FILE) pairs to be examined for docker method.")
+(defconst lxc-tramp-completion-function-alist
+  '((lxc-tramp--parse-running-containers  ""))
+  "Default list of (FUNCTION FILE) pairs to be examined for lxc method.")
 
 ;;;###autoload
-(defconst docker-tramp-method "docker"
-  "Method to connect docker containers.")
+(defconst lxc-tramp-method "lxc"
+  "Method to connect lxc containers.")
 
-(defun docker-tramp--running-containers ()
-  "Collect docker running containers.
+(defun lxc-tramp--running-containers ()
+  "Collect lxc running containers.
 
 Return a list of containers of the form: \(ID NAME\)"
-  (cl-loop for line in (cdr (ignore-errors (apply #'process-lines docker-tramp-docker-executable (append docker-tramp-docker-options (list "ps")))))
+  (cl-loop for line in (cdr (ignore-errors (apply #'process-lines lxc-tramp-lxc-executable (append lxc-tramp-lxc-options (list "ps")))))
            for info = (split-string line "[[:space:]]+" t)
            collect (cons (car info) (last info))))
 
-(defun docker-tramp--parse-running-containers (&optional ignored)
+(defun lxc-tramp--parse-running-containers (&optional ignored)
   "Return a list of (user host) tuples.
 
 TRAMP calls this function with a filename which is IGNORED.  The
-user is an empty string because the docker TRAMP method uses bash
+user is an empty string because the lxc TRAMP method uses bash
 to connect to the default user containers."
-  (cl-loop for (id name) in (docker-tramp--running-containers)
-           collect (list "" (if docker-tramp-use-names name id))))
+  (cl-loop for (id name) in (lxc-tramp--running-containers)
+           collect (list "" (if lxc-tramp-use-names name id))))
 
 ;;;###autoload
-(defun docker-tramp-cleanup ()
-  "Cleanup TRAMP cache for docker method."
+(defun lxc-tramp-cleanup ()
+  "Cleanup TRAMP cache for lxc method."
   (interactive)
-  (let ((containers (apply 'append (docker-tramp--running-containers))))
+  (let ((containers (apply 'append (lxc-tramp--running-containers))))
     (maphash (lambda (key _)
                (and (vectorp key)
-                    (string-equal docker-tramp-method (tramp-file-name-method key))
+                    (string-equal lxc-tramp-method (tramp-file-name-method key))
                     (not (member (tramp-file-name-host key) containers))
                     (remhash key tramp-cache-data)))
              tramp-cache-data))
@@ -132,25 +115,25 @@ to connect to the default user containers."
     (tramp-dump-connection-properties)))
 
 ;;;###autoload
-(defun docker-tramp-add-method ()
-  "Add docker tramp method."
+(defun lxc-tramp-add-method ()
+  "Add lxc tramp method."
   (add-to-list 'tramp-methods
-               `(,docker-tramp-method
-                 (tramp-login-program      ,docker-tramp-docker-executable)
-                 (tramp-login-args         (,docker-tramp-docker-options ("exec" "-it") ("-u" "%u") ("%h") ("sh")))
+               `(,lxc-tramp-method
+                 (tramp-login-program      ,lxc-tramp-lxc-executable)
+                 (tramp-login-args         (,lxc-tramp-lxc-options ("exec" "-it") ("-u" "%u") ("%h") ("sh")))
                  (tramp-remote-shell       "/bin/sh")
                  (tramp-remote-shell-args  ("-i" "-c")))))
 
 ;;;###autoload
 (eval-after-load 'tramp
   '(progn
-     (docker-tramp-add-method)
-     (tramp-set-completion-function docker-tramp-method docker-tramp-completion-function-alist)))
+     (lxc-tramp-add-method)
+     (tramp-set-completion-function lxc-tramp-method lxc-tramp-completion-function-alist)))
 
-(provide 'docker-tramp)
+(provide 'lxc-tramp)
 
 ;; Local Variables:
 ;; indent-tabs-mode: nil
 ;; End:
 
-;;; docker-tramp.el ends here
+;;; lxc-tramp.el ends here

@@ -1,7 +1,7 @@
 (source gnu)
 (source melpa)
 
-(package-file "docker-tramp.el")
+(package-file "lxc-tramp.el")
 
 (development
  (depends-on "ert")
